@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cool104 アシストツール (ウェブ版)</title>
+    <style>
+        /* Cool104風デザインの基本色 */
+        :root {
+            --bg-dark-blue: #00008b; /* 濃い青 */
+            --border-light-blue: #00ffff; /* シアン（明るい青） */
+            --text-white: #ffffff;
+            --text-yellow: #ffff00;
+            --text-cyan: #00ffff;
+            --card-bg: #f8f8f8; /* カードの背景色 */
+            --card-border: #aaa;
+            --card-red: #ff0000;
+            --card-black: #000000;
+            --log-bg-dark: rgba(0, 0, 0, 0.85);
+            --log-header-bg: #1a1a1a;
+        }
+
+        /* 基本的なスタイル */
+        body {
+            font-family: 'Press Start 2P', 'Arial', sans-serif; /* ドット絵風フォントがあれば理想的、なければArial */
+            margin: 0;
+            padding: 10px;
+            background-color: var(--bg-dark-blue); /* 全体の背景色 */
+            color: var(--text-white); /* 基本の文字色 */
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5); /* 文字に影をつけて視認性アップ */
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--text-yellow); /* 黄色のタイトル */
+            font-size: 2em;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 3px rgba(0,0,0,0.7);
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 10px auto;
+            background-color: rgba(0, 0, 0, 0.3); /* 半透明の黒でゲーム画面の奥行き感を出す */
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.5); /* 明るい青の光の枠 */
+            padding: 20px;
+            flex-grow: 1;
+            border: 2px solid var(--border-light-blue); /* 明るい青の枠線 */
+        }
+
+        /* フレームの共通スタイル */
+        .frame {
+            border: 1px solid var(--border-light-blue); /* 各セクションの枠線 */
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: rgba(0, 0, 0, 0.5); /* 半透明の黒 */
+        }
+        .frame h2 {
+            margin-top: 0;
+            font-size: 1.2em;
+            color: var(--text-cyan); /* 水色の見出し */
+            border-bottom: 1px solid var(--border-light-blue);
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+
+        /* トップエリア (場のカード、山札、捨て札) */
+        .top-area {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            text-align: center;
+        }
+        .top-area div {
+            flex: 1;
+            padding: 5px;
+        }
+        .top-card-display {
+            font-size: 3em;
+            font-weight: bold;
+            color: var(--card-black); /* カードの文字色 */
+            border: 2px solid var(--card-border);
+            width: 100px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            border-radius: 5px;
+            background-color: var(--card-bg); /* カードの背景色 */
+            box-shadow: 3px 3px 5px rgba(0,0,0,0.5);
+        }
+        .top-card-display.red { color: var(--card-red); }
+        .top-card-display.black { color: var(--card-black); }
+
+
+        /* カード表示 (手札と選択可能なカード) */
+        .card-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            min-height: 120px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card {
+            width: 60px;
+            height: 90px;
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
+            text-shadow: none; /* カード内の文字には影をつけない */
+        }
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 3px 3px 7px rgba(0,255,255,0.7); /* ホバーで光るエフェクト */
+        }
+        .card.red { color: var(--card-red); }
+        .card.black { color: var(--card-black); }
+        .card.playable { border: 2px solid var(--border-light-blue); box-shadow: 0 0 8px rgba(0,255,255,0.5); } /* 出せるカードを強調 */
+        .card.selected {
+            border: 2px solid var(--text-yellow); /* 選択されたカードは黄色 */
+            box-shadow: 0 0 10px rgba(255,255,0,0.8);
+        }
+        .card .rank {
+            font-size: 1.2em;
+        }
+        .card .suit {
+            font-size: 0.8em;
+        }
+        .card .score {
+            position: absolute;
+            bottom: 3px;
+            font-size: 0.7em;
+            font-weight: normal;
+            color: var(--text-white); /* スコアの文字色を白に */
+            text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
+        }
+        .card .score.positive { color: #00ff00; } /* 明るい緑 */
+        .card .score.negative { color: #ff0000; } /* 明るい赤 */
+        .card .score.infinity { color: #888; }
+
+
+        /* コントロールボタン */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+        .controls button,
+        .manual-setup button,
+        .log-controls button {
+            padding: 10px 15px;
+            font-size: 1em;
+            border: 1px solid var(--border-light-blue);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s, box-shadow 0.2s;
+            flex-grow: 1;
+            max-width: 250px;
+            background-color: #000040; /* ボタンの背景色 */
+            color: var(--text-white);
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+        }
+        .controls button:hover,
+        .manual-setup button:hover,
+        .log-controls button:hover {
+            background-color: #000060;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.7);
+        }
+        .controls button.assist { background-color: #6c757d; }
+        .controls button.assist:hover { background-color: #5a6268; }
+        .controls button.reset-random { background-color: #ffc107; color: #212529; } /* 黄色で目立たせる */
+        .controls button.reset-random:hover { background-color: #e0a800; }
+        .controls button.reset-clear { background-color: #dc3545; color: white; }
+        .controls button.reset-clear:hover { background-color: #c82333; }
+        .log-controls button { background-color: #007bff; color: white; }
+        .log-controls button:hover { background-color: #0056b3; }
+
+
+        /* カード設定セクション */
+        .manual-setup .input-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .manual-setup label {
+            min-width: 120px;
+            font-size: 0.9em;
+            color: var(--text-white);
+        }
+        .manual-setup select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border-light-blue);
+            font-size: 0.9em;
+            flex-grow: 1;
+            max-width: 100px;
+            background-color: #000040;
+            color: var(--text-white);
+        }
+        .manual-setup button.add-card { background-color: #28a745; }
+        .manual-setup button.add-card:hover { background-color: #218838; }
+        .manual-setup button.clear-card { background-color: #6c757d; }
+        .manual-setup button.clear-card:hover { background-color: #5a6268; }
+        .manual-setup button.full-reset {
+            background-color: #17a2b8;
+            color: white;
+            margin-top: 10px;
+            width: 100%;
+        }
+        .manual-setup button.full-reset:hover { background-color: #138496; }
+
+        /* 捨てられたカードの履歴 - 新しいテーブル形式 */
+        .discarded-history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+            text-align: center;
+            background-color: rgba(0, 0, 0, 0.3); /* テーブルの背景も暗く */
+        }
+        .discarded-history-table th,
+        .discarded-history-table td {
+            border: 1px solid var(--border-light-blue); /* テーブルの線も明るい青 */
+            padding: 5px;
+            color: var(--text-white);
+        }
+        .discarded-history-table th {
+            background-color: rgba(0, 0, 0, 0.7); /* ヘッダーの背景色 */
+            font-weight: bold;
+            color: var(--text-cyan); /* ヘッダー文字色 */
+        }
+        .discarded-history-table .suit-header {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #555; /* デフォルトの色はグレーに */
+        }
+        .discarded-history-table .red-suit { color: var(--card-red); }
+        .discarded-history-table .black-suit { color: var(--card-black); }
+        .discarded-history-table .rank-header {
+            font-size: 0.9em;
+            font-weight: normal;
+        }
+        .discarded-history-table .card-count {
+            font-weight: bold;
+        }
+        .discarded-history-table .card-count.zero {
+            color: #555; /* 出ていないカードのカウントを暗く */
+        }
+
+
+        /* ログコンソール */
+        .log-console-container {
+            margin-top: 20px;
+            background-color: var(--log-bg-dark);
+            color: #eee;
+            border-top: 1px solid #444;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-light-blue);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+        }
+        .log-console-container.hidden .log-content {
+            max-height: 0;
+            padding: 0 10px;
+            transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+        }
+        .log-console-container .log-content {
+            max-height: 150px;
+            padding: 10px;
+            transition: max-height 0.3s ease-in, padding 0.3s ease-in;
+            overflow-y: auto;
+        }
+
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 15px;
+            background-color: var(--log-header-bg);
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-light-blue);
+        }
+        .log-header h3 {
+            margin: 0;
+            font-size: 1.1em;
+            color: var(--text-cyan);
+        }
+        .log-header button {
+            background: none;
+            border: 1px solid var(--text-white);
+            color: var(--text-white);
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        .log-header button:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+
+        .log-content p {
+            margin: 3px 0;
+            border-bottom: 1px dotted #444;
+            padding-bottom: 3px;
+        }
+        .log-content p:last-child {
+            border-bottom: none;
+        }
+        .log-content .log-info { color: #87CEEB; }
+        .log-content .log-success { color: #90EE90; }
+        .log-content .log-error { color: #FF6347; }
+        .log-content .log-assist { color: #FFD700; }
+
+
+        /* モバイル対応 */
+        @media (max-width: 600px) {
+            .container {
+                padding: 10px;
+            }
+            .top-card-display {
+                font-size: 2.5em;
+                width: 80px;
+                height: 70px;
+            }
+            .card {
+                width: 50px;
+                height: 80px;
+                font-size: 1.2em;
+            }
+            .card .score {
+                font-size: 0.6em;
+                bottom: 2px;
+            }
+            .controls button,
+            .manual-setup button,
+            .log-controls button {
+                font-size: 0.9em;
+                padding: 8px 10px;
+            }
+            .manual-setup .input-group {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .manual-setup label {
+                margin-bottom: 5px;
+            }
+            .manual-setup select,
+            .manual-setup button {
+                width: 100%;
+                max-width: unset;
+            }
+            /* ログコンソールのモバイル調整 */
+            .log-console-container .log-content {
+                max-height: 100px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Cool104 アシストツール</h1>
+
+        <div class="frame top-area">
+            <div>
+                <h2>場のカード:</h2>
+                <div id="top-card-display" class="top-card-display">なし</div>
+            </div>
+            <div>
+                <h2>山札:</h2>
+                <span id="deck-size">52枚</span>
+            </div>
+            <div>
+                <h2>捨て札:</h2>
+                <span id="discarded-cards-count">0枚</span>
+            </div>
+        </div>
+
+        <div class="frame">
+            <h2>あなたの手札:</h2>
+            <div id="player-hand-list" class="card-list">
+                </div>
+        </div>
+        
+        <div class="frame manual-setup">
+            <h2>カード設定</h2>
+            <div class="input-group">
+                <label>場のカード設定:</label>
+                <select id="top-card-suit"></select>
+                <select id="top-card-rank"></select>
+                <button onclick="applyManualTopCard()">場札を更新</button>
+                <button class="clear-card" onclick="clearTopCard()">場札クリア</button>
+            </div>
+            <div class="input-group">
+                <label>手札操作:</label>
+                <select id="hand-suit"></select>
+                <select id="hand-rank"></select>
+                <button class="add-card" onclick="addCardToHand()">手札に加える</button>
+                <button class="clear-card" onclick="clearPlayerHand()">手札をクリア</button>
+            </div>
+            <button class="full-reset" onclick="setHandAndStartGame()">現在の手札と場札でゲーム開始</button>
+        </div>
+
+        <div class="frame">
+            <h2>出たカード一覧:</h2>
+            <div id="discarded-history-container">
+                <table class="discarded-history-table">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th class="rank-header">A</th>
+                            <th class="rank-header">2</th>
+                            <th class="rank-header">3</th>
+                            <th class="rank-header">4</th>
+                            <th class="rank-header">5</th>
+                            <th class="rank-header">6</th>
+                            <th class="rank-header">7</th>
+                            <th class="rank-header">8</th>
+                            <th class="rank-header">9</th>
+                            <th class="rank-header">10</th>
+                            <th class="rank-header">J</th>
+                            <th class="rank-header">Q</th>
+                            <th class="rank-header">K</th>
+                        </tr>
+                    </thead>
+                    <tbody id="discarded-history-table-body">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="frame controls">
+            <button class="assist" onclick="showAssist()">アシスト</button>
+            <button class="reset-random" onclick="resetGameRandom()">ランダムな手札で開始</button>
+            <button class="reset-clear" onclick="resetGameToEmptyState()">ゲームリセット (クリア)</button>
+        </div>
+    </div>
+
+    <div id="log-console-container" class="log-console-container">
+        <div class="log-header" onclick="toggleLogConsole()">
+            <h3>ログ</h3>
+            <button id="toggle-log-button">非表示</button>
+        </div>
+        <div id="log-content" class="log-content">
+            </div>
+    </div>
+
+    <script>
+        // 定数
+        const SUITS = ['♠', '♥', '♦', '♣'];
+        const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+        const RANK_VALUES = {
+            'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13
+        };
+
+        // --- ログ機能 ---
+        const logContentDiv = document.getElementById('log-content');
+        const logConsoleContainer = document.getElementById('log-console-container');
+        const toggleLogButton = document.getElementById('toggle-log-button');
+        let isLogConsoleHidden = false; // 初期状態は表示
+
+        function addLog(message, type = 'info') {
+            const p = document.createElement('p');
+            p.textContent = message;
+            p.classList.add(`log-${type}`);
+            logContentDiv.appendChild(p);
+            logContentDiv.scrollTop = logContentDiv.scrollHeight;
+        }
+
+        function toggleLogConsole() {
+            isLogConsoleHidden = !isLogConsoleHidden;
+            if (isLogConsoleHidden) {
+                logConsoleContainer.classList.add('hidden');
+                toggleLogButton.textContent = '表示';
+            } else {
+                logConsoleContainer.classList.remove('hidden');
+                toggleLogButton.textContent = '非表示';
+            }
+        }
+
+        // Card クラス
+        class Card {
+            constructor(suit, rank) {
+                if (!SUITS.includes(suit)) throw new Error(`Invalid suit: ${suit}`);
+                if (!RANKS.includes(rank)) throw new Error(`Invalid rank: ${rank}`);
+                this.suit = suit;
+                this.rank = rank;
+            }
+
+            toString() {
+                return `${this.suit}${this.rank}`;
+            }
+
+            equals(other) {
+                return other instanceof Card && this.suit === other.suit && this.rank === other.rank;
+            }
+
+            getRankValue() {
+                return RANK_VALUES[this.rank];
+            }
+        }
+
+        // Deck クラス
+        class Deck {
+            constructor() {
+                this.cards = [];
+                this.discardedCards = []; // 捨てられたカード（場に出たカード）を記録
+                this.createFullDeck();
+            }
+
+            createFullDeck() {
+                this.cards = [];
+                for (const suit of SUITS) {
+                    for (const rank of RANKS) {
+                        this.cards.push(new Card(suit, rank));
+                    }
+                }
+            }
+
+            shuffle() {
+                for (let i = this.cards.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [this.cards[i], this.cards[j]] = [this.cards[j], this.cards[i]];
+                }
+            }
+
+            drawCard() {
+                if (this.cards.length === 0) return null;
+                return this.cards.pop();
+            }
+
+            addDiscardedCard(card) {
+                if (!(card instanceof Card)) throw new Error("Only Card objects can be added to discarded pile.");
+                this.discardedCards.push(card);
+            }
+
+            getCardsInDeck() {
+                return [...this.cards];
+            }
+
+            getDiscardedCardsPile() {
+                return [...this.discardedCards];
+            }
+
+            resetDeck() {
+                this.cards = [];
+                this.discardedCards = [];
+                this.createFullDeck();
+                this.shuffle();
+            }
+        }
+
+        // Cool104Game クラス
+        class Cool104Game {
+            constructor() {
+                this.deck = new Deck();
+                this.deck.shuffle();
+                this.playerHand = [];
+                this.topCard = null;
+                this.playedCardsHistory = [];
+                this.initialPlayPhase = false; // ゲーム開始時の最初の1枚を出すフェーズかどうかのフラグ
+                this.handSizeTarget = 5; // 手札の目標枚数 (Cool104のルールより)
+            }
+
+            startGame(initialHandSize = 5, isInitialPlayPhase = true) {
+                this.deck.resetDeck();
+                this.playerHand = [];
+                this.topCard = null;
+                this.playedCardsHistory = [];
+                this.initialPlayPhase = isInitialPlayPhase;
+
+                for (let i = 0; i < initialHandSize; i++) {
+                    const card = this.deck.drawCard();
+                    if (card) {
+                        this.playerHand.push(card);
+                    }
+                }
+                this._updateDeckAfterManualHandSet();
+            }
+
+            canPlayCard(cardToPlay) {
+                if (this.initialPlayPhase) {
+                    return true;
+                }
+                if (!this.topCard) {
+                    return true;
+                }
+                return cardToPlay.suit === this.topCard.suit || cardToPlay.rank === this.topCard.rank;
+            }
+
+            playCard(cardToPlay) {
+                const cardIndex = this.playerHand.findIndex(c => c.equals(cardToPlay));
+                if (cardIndex === -1) {
+                    throw new Error(`Card ${cardToPlay} is not in hand.`);
+                }
+
+                let logMessage = `「${cardToPlay}」を場に出しました。`;
+                
+                this.playerHand.splice(cardIndex, 1);
+                this.topCard = cardToPlay;
+                this.playedCardsHistory.push(cardToPlay);
+                this.deck.addDiscardedCard(cardToPlay);
+                
+                if (this.initialPlayPhase) {
+                    const cardsDrawnCount = this.refillHandToTargetSize();
+                    logMessage += `\n手札を${cardsDrawnCount}枚補充し、${this.playerHand.length}枚になりました。`;
+                    this.initialPlayPhase = false;
+                }
+
+                this._updateDeckAfterManualHandSet();
+                addLog(logMessage, 'success');
+                return true;
+            }
+
+            refillHandToTargetSize() {
+                let cardsDrawn = 0;
+                while (this.playerHand.length < this.handSizeTarget) {
+                    const card = this.deck.drawCard();
+                    if (card) {
+                        this.playerHand.push(card);
+                        cardsDrawn++;
+                    } else {
+                        addLog("山札が空になりました。手札の補充ができませんでした。", 'info');
+                        break;
+                    }
+                }
+                this._updateDeckAfterManualHandSet();
+                return cardsDrawn;
+            }
+
+            getCurrentState() {
+                return {
+                    playerHand: [...this.playerHand],
+                    topCard: this.topCard,
+                    deckSize: this.deck.getCardsInDeck().length,
+                    discardedCardsCount: this.deck.getDiscardedCardsPile().length,
+                    playedCardsHistory: [...this.playedCardsHistory],
+                    initialPlayPhase: this.initialPlayPhase
+                };
+            }
+
+            getAllKnownCards() {
+                const knownCards = new Set();
+                this.playerHand.forEach(card => knownCards.add(card.toString()));
+                if (this.topCard) knownCards.add(this.topCard.toString());
+                this.playedCardsHistory.forEach(card => knownCards.add(card.toString()));
+                
+                const knownCardObjects = [];
+                knownCards.forEach(cardStr => {
+                    const suit = cardStr[0];
+                    const rank = cardStr.substring(1);
+                    knownCardObjects.push(new Card(suit, rank));
+                });
+                return knownCardObjects;
+            }
+
+            setPlayerHand(cardsStr) {
+                const cards = [];
+                const cardStrList = cardsStr.split(',').map(s => s.trim()).filter(s => s);
+
+                const allPossibleCards = new Set();
+                for (const suit of SUITS) {
+                    for (const rank of RANKS) {
+                        allPossibleCards.add(new Card(suit, rank).toString());
+                    }
+                }
+                
+                const currentUsedCards = new Set();
+                this.playedCardsHistory.forEach(card => currentUsedCards.add(card.toString()));
+                if (this.topCard) currentUsedCards.add(this.topCard.toString());
+
+                for (const s of cardStrList) {
+                    const suit = s[0];
+                    const rank = s.substring(1);
+                    try {
+                        const card = new Card(suit, rank);
+                        if (!allPossibleCards.has(card.toString())) {
+                            throw new Error(`Invalid card string: ${s}`);
+                        }
+                        if (currentUsedCards.has(card.toString()) || cards.some(c => c.equals(card))) {
+                            throw new Error(`Card ${s} is already in use (場または手札に重複).`);
+                        }
+                        cards.push(card);
+                    } catch (e) {
+                        throw new Error(`Error parsing card '${s}': ${e.message}`);
+                    }
+                }
+                this.playerHand = cards;
+                this._updateDeckAfterManualHandSet();
+            }
+
+            setTopCard(cardStr) {
+                const allPossibleCards = new Set();
+                for (const suit of SUITS) {
+                    for (const rank of RANKS) {
+                        allPossibleCards.add(new Card(suit, rank).toString());
+                    }
+                }
+
+                if (!cardStr) {
+                    if (this.topCard) {
+                        const topCardStr = this.topCard.toString();
+                        const historyIndex = this.playedCardsHistory.findIndex(c => c.toString() === topCardStr);
+                        if (historyIndex !== -1) {
+                            this.playedCardsHistory.splice(historyIndex, 1);
+                        }
+                        const discardedIndex = this.deck.discardedCards.findIndex(c => c.toString() === topCardStr);
+                        if (discardedIndex !== -1) {
+                            this.deck.discardedCards.splice(discardedIndex, 1);
+                        }
+                    }
+                    this.topCard = null;
+                    this._updateDeckAfterManualHandSet();
+                    return;
+                }
+
+                const suit = cardStr[0];
+                const rank = cardStr.substring(1);
+                try {
+                    const newTopCard = new Card(suit, rank);
+                    if (!allPossibleCards.has(newTopCard.toString())) {
+                        throw new Error(`Invalid card string: ${cardStr}`);
+                    }
+                    if (this.playerHand.some(c => c.equals(newTopCard))) {
+                        throw new Error(`Card ${cardStr} is already in player's hand.`);
+                    }
+
+                    if (this.topCard) {
+                        const topCardStr = this.topCard.toString();
+                        const historyIndex = this.playedCardsHistory.findIndex(c => c.toString() === topCardStr);
+                        if (historyIndex !== -1) {
+                            this.playedCardsHistory.splice(historyIndex, 1);
+                        }
+                        const discardedIndex = this.deck.discardedCards.findIndex(c => c.toString() === topCardStr);
+                        if (discardedIndex !== -1) {
+                            this.deck.discardedCards.splice(discardedIndex, 1);
+                        }
+                    }
+
+                    this.topCard = newTopCard;
+                    if (!this.playedCardsHistory.some(c => c.equals(newTopCard))) {
+                        this.playedCardsHistory.push(newTopCard);
+                    }
+                    if (!this.deck.discardedCards.some(c => c.equals(newTopCard))) {
+                        this.deck.addDiscardedCard(newTopCard);
+                    }
+                    this._updateDeckAfterManualHandSet();
+
+                } catch (e) {
+                    throw new Error(`Error parsing top card '${cardStr}': ${e.message}`);
+                }
+            }
+
+            clearPlayerHandInternal() {
+                this.playerHand = [];
+                this._updateDeckAfterManualHandSet();
+            }
+
+            _updateDeckAfterManualHandSet() {
+                const allCardsSet = new Set();
+                for (const suit of SUITS) {
+                    for (const rank of RANKS) {
+                        allCardsSet.add(new Card(suit, rank).toString());
+                    }
+                }
+                
+                const currentKnownCardsSet = new Set();
+                this.playerHand.forEach(card => currentKnownCardsSet.add(card.toString()));
+                if (this.topCard) currentKnownCardsSet.add(this.topCard.toString());
+                this.playedCardsHistory.forEach(card => currentKnownCardsSet.add(card.toString()));
+
+                this.deck.cards = [];
+                for (const cardStr of allCardsSet) {
+                    if (!currentKnownCardsSet.has(cardStr)) {
+                        const suit = cardStr[0];
+                        const rank = cardStr.substring(1);
+                        this.deck.cards.push(new Card(suit, rank));
+                    }
+                }
+                this.deck.shuffle();
+
+                this.deck.discardedCards = [];
+                for (const card of this.playedCardsHistory) {
+                    if (!this.playerHand.some(c => c.equals(card)) && !(this.topCard && this.topCard.equals(card))) {
+                        this.deck.discardedCards.push(card);
+                    }
+                }
+            }
+        }
+
+        // Cool104Assistant クラス
+        class Cool104Assistant {
+            constructor() {
+                this.pokerPays = {
+                    'ROYAL_FLUSH': 300,
+                    'STRAIGHT_FLUSH': 50,
+                    'FOUR_OF_A_KIND': 15,
+                    'FULL_HOUSE': 6,
+                    'FLUSH': 3,
+                    'STRAIGHT': 1,
+                    'THREE_OF_A_KIND': 0.5,
+                    'TWO_PAIR': 0.2,
+                    'ONE_PAIR': 0.1,
+                    'HIGH_CARD': 0
+                };
+                this.MIN_CARDS_FOR_POKER_HAND = 5;
+            }
+
+            getBestMove(playerHand, topCard, knownCards) {
+                // 最初の1枚を出すフェーズでは、全てのカードが出せる
+                const playableCards = playerHand.filter(card => {
+                    // ここで `game` オブジェクトに直接アクセスするため、
+                    // assistantはgameインスタンスを知っているか、getState()を呼ぶ必要がある
+                    // 簡単にするため、グローバルな`game`インスタンスに直接アクセス
+                    const currentState = game.getCurrentState(); 
+                    if (currentState.initialPlayPhase) {
+                        return true;
+                    }
+                    return game.canPlayCard(card);
+                });
+
+                if (playableCards.length === 0) {
+                    return null;
+                }
+
+                let bestCard = null;
+                let bestScore = -Infinity;
+
+                const allPossibleCards = new Set();
+                for (const suit of SUITS) {
+                    for (const rank of RANKS) {
+                        allPossibleCards.add(new Card(suit, rank).toString());
+                    }
+                }
+                const unknownCards = [];
+                for (const cardStr of allPossibleCards) {
+                    if (!knownCards.some(c => c.toString() === cardStr)) {
+                        const suit = cardStr[0];
+                        const rank = cardStr.substring(1);
+                        unknownCards.push(new Card(suit, rank));
+                    }
+                }
+
+                for (const cardToPlay of playableCards) {
+                    const score = this._evaluateMove(cardToPlay, playerHand, topCard, unknownCards);
+                    
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestCard = cardToPlay;
+                    } else if (score === bestScore) {
+                        if (bestCard === null || cardToPlay.getRankValue() > bestCard.getRankValue()) {
+                            bestCard = cardToPlay;
+                        }
+                    }
+                }
+                return bestCard;
+            }
+
+            _getPlayableCardsFromHand(hand, topCard) {
+                const playable = [];
+                for (const card of hand) {
+                    if (topCard === null || card.suit === topCard.suit || card.rank === topCard.rank) {
+                        playable.push(card);
+                    }
+                }
+                return playable;
+            }
+
+            _evaluateMove(cardToPlay, currentHand, topCard, unknownCards) {
+                let score = 0;
+
+                score += 10;
+
+                const tempHandAfterPlay = currentHand.filter(c => !c.equals(cardToPlay));
+
+                const handPokerType = this._evaluatePokerHandType(tempHandAfterPlay);
+                score += this.pokerPays[handPokerType] || 0;
+
+                const suitCountsAfterPlay = {};
+                for (const card of tempHandAfterPlay) {
+                    suitCountsAfterPlay[card.suit] = (suitCountsAfterPlay[card.suit] || 0) + 1;
+                }
+                
+                const tempRankValuesNumericForStraight = [];
+                for (const card of tempHandAfterPlay) {
+                    const val = card.getRankValue();
+                    tempRankValuesNumericForStraight.push(val);
+                    if (val === 1) tempRankValuesNumericForStraight.push(14);
+                }
+                const uniqueSortedTempRankValues = [...new Set(tempRankValuesNumericForStraight)].sort((a, b) => a - b);
+
+                for (const suit in suitCountsAfterPlay) {
+                    const count = suitCountsAfterPlay[suit];
+                    if (count >= this.MIN_CARDS_FOR_POKER_HAND - 2) {
+                        const neededCardsForFlush = this.MIN_CARDS_FOR_POKER_HAND - count;
+                        if (neededCardsForFlush > 0) {
+                            const flushOuts = unknownCards.filter(c => c.suit === suit).length;
+                            score += this.pokerPays['FLUSH'] * flushOuts * 2;
+                        }
+                    }
+                }
+
+                if (uniqueSortedTempRankValues.length >= this.MIN_CARDS_FOR_POKER_HAND - 2) {
+                    for (let i = 0; i <= uniqueSortedTempRankValues.length - (this.MIN_CARDS_FOR_POKER_HAND - 1); i++) {
+                        const subset = uniqueSortedTempRankValues.slice(i, i + (this.MIN_CARDS_FOR_POKER_HAND - 1));
+                        
+                        let isSequential = true;
+                        for (let j = 0; j < subset.length - 1; j++) {
+                            if (subset[j+1] !== subset[j] + 1) {
+                                isSequential = false;
+                                break;
+                            }
+                        }
+                        
+                        if (isSequential) {
+                            let straightOuts = 0;
+                            const neededLowRankVal = subset[0] - 1;
+                            const neededHighRankVal = subset[subset.length - 1] + 1;
+                            
+                            const possibleNeededRanks = [];
+                            if (neededLowRankVal >= 1 && neededLowRankVal <= 13) {
+                                possibleNeededRanks.push(RANKS[neededLowRankVal - 1]);
+                            }
+                            if (neededHighRankVal >= 1 && neededHighRankVal <= 13) {
+                                possibleNeededRanks.push(RANKS[neededHighRankVal - 1]);
+                            }
+                            if (subset.includes(2) && subset.includes(3) && subset.includes(4) && subset.includes(5)) {
+                                if (!subset.includes(1)) {
+                                    possibleNeededRanks.push('A');
+                                }
+                            }
+                            if (subset.includes(10) && subset.includes(11) && subset.includes(12) && subset.includes(13)) {
+                                if (!subset.includes(14)) {
+                                    possibleNeededRanks.push('A');
+                                }
+                            }
+                            
+                            for (const rankNeeded of possibleNeededRanks) {
+                                straightOuts += unknownCards.filter(c => c.rank === rankNeeded).length;
+                            }
+                            score += this.pokerPays['STRAIGHT'] * straightOuts * 2;
+                        }
+                    }
+                }
+
+                const rankCountsAfterPlay = {};
+                for (const card of tempHandAfterPlay) {
+                    rankCountsAfterPlay[card.rank] = (rankCountsAfterPlay[card.rank] || 0) + 1;
+                }
+
+                for (const rank in rankCountsAfterPlay) {
+                    const count = rankCountsAfterPlay[rank];
+                    if (count === 2) {
+                        const remainingRankInUnknown = unknownCards.filter(c => c.rank === rank).length;
+                        if (remainingRankInUnknown > 0) {
+                            score += this.pokerPays['THREE_OF_A_KIND'] * remainingRankInUnknown * 3;
+                        }
+                    } else if (count === 3) {
+                        const remainingRankInUnknown = unknownCards.filter(c => c.rank === rank).length;
+                        if (remainingRankInUnknown > 0) {
+                            score += this.pokerPays['FOUR_OF_A_KIND'] * remainingRankInUnknown * 3;
+                        }
+                    }
+                }
+
+                const remainingSameSuit = unknownCards.filter(c => c.suit === cardToPlay.suit).length;
+                const remainingSameRank = unknownCards.filter(c => c.rank === cardToPlay.rank).length;
+                score -= (remainingSameSuit * 0.5 + remainingSameRank * 0.5);
+
+                return score;
+            }
+
+            _evaluatePokerHandType(hand) {
+                if (hand.length < 2) return 'HIGH_CARD';
+
+                const rankCounts = {};
+                for (const card of hand) {
+                    rankCounts[card.rank] = (rankCounts[card.rank] || 0) + 1;
+                }
+                const suitCounts = {};
+                for (const card of hand) {
+                    suitCounts[card.suit] = (suitCounts[card.suit] || 0) + 1;
+                }
+                
+                const rankValuesNumericForStraight = [];
+                for (const card of hand) {
+                    const val = card.getRankValue();
+                    rankValuesNumericForStraight.push(val);
+                    if (val === 1) rankValuesNumericForStraight.push(14);
+                }
+                const uniqueSortedRankValues = [...new Set(rankValuesNumericForStraight)].sort((a, b) => a - b);
+
+
+                let isFlush = false;
+                if (hand.length >= this.MIN_CARDS_FOR_POKER_HAND) {
+                    isFlush = Object.values(suitCounts).some(count => count >= this.MIN_CARDS_FOR_POKER_HAND);
+                }
+
+                let isStraight = false;
+                if (uniqueSortedRankValues.length >= this.MIN_CARDS_FOR_POKER_HAND) {
+                    for (let i = 0; i <= uniqueSortedRankValues.length - this.MIN_CARDS_FOR_POKER_HAND; i++) {
+                        const subsetValues = uniqueSortedRankValues.slice(i, i + this.MIN_CARDS_FOR_POKER_HAND);
+                        let isCurrentSubsetStraight = true;
+                        for (let j = 0; j < subsetValues.length - 1; j++) {
+                            if (subsetValues[j+1] !== subsetValues[j] + 1) {
+                                isCurrentSubsetStraight = false;
+                                break;
+                            }
+                        }
+                        
+                        if (isCurrentSubsetStraight) {
+                            isStraight = true;
+                            break;
+                        }
+                    }
+                }
+
+                const royalFlushRanksSet = new Set(['10', 'J', 'Q', 'K', 'A']);
+                
+                if (isStraight && isFlush) {
+                    for (const suit of SUITS) {
+                        const cardsInSuit = hand.filter(c => c.suit === suit);
+                        if (cardsInSuit.length >= this.MIN_CARDS_FOR_POKER_HAND) {
+                            const suitRanks = new Set(cardsInSuit.map(c => c.rank));
+                            if (royalFlushRanksSet.size === suitRanks.size && [...royalFlushRanksSet].every(rank => suitRanks.has(rank))) {
+                                return 'ROYAL_FLUSH';
+                            }
+                        }
+                    }
+                    return 'STRAIGHT_FLUSH';
+                }
+
+                const rankCountsValues = Object.values(rankCounts);
+                const twoPairCount = rankCountsValues.filter(count => count === 2).length;
+
+                if (rankCountsValues.includes(4)) return 'FOUR_OF_A_KIND';
+                if (rankCountsValues.includes(3) && rankCountsValues.includes(2)) return 'FULL_HOUSE';
+                if (isFlush) return 'FLUSH';
+                if (isStraight) return 'STRAIGHT';
+
+                if (rankCountsValues.includes(3)) return 'THREE_OF_A_KIND';
+                if (twoPairCount >= 2) return 'TWO_PAIR';
+                if (twoPairCount === 1) return 'ONE_PAIR';
+
+                return 'HIGH_CARD';
+            }
+        }
+
+
+        // DOM要素
+        const topCardDisplay = document.getElementById('top-card-display');
+        const deckSizeSpan = document.getElementById('deck-size');
+        const discardedCardsCountSpan = document.getElementById('discarded-cards-count');
+        const playerHandListDiv = document.getElementById('player-hand-list');
+        const discardedHistoryTableBody = document.getElementById('discarded-history-table-body');
+
+        const topCardSuitSelect = document.getElementById('top-card-suit');
+        const topCardRankSelect = document.getElementById('top-card-rank');
+        const handSuitSelect = document.getElementById('hand-suit');
+        const handRankSelect = document.getElementById('hand-rank');
+
+        // ゲームとアシスタントのインスタンス
+        const game = new Cool104Game();
+        const assistant = new Cool104Assistant();
+
+        // ドロップダウンメニューにオプションを設定
+        function populateSelects() {
+            function populate(selectElement, options) {
+                selectElement.innerHTML = '';
+                options.forEach(option => {
+                    const opt = document.createElement('option');
+                    opt.value = option;
+                    opt.textContent = option;
+                    selectElement.appendChild(opt);
+                });
+            }
+            populate(topCardSuitSelect, SUITS);
+            populate(topCardRankSelect, RANKS);
+            populate(handSuitSelect, SUITS);
+            populate(handRankSelect, RANKS);
+        }
+
+        // GUIの更新
+        function updateGUI() {
+            const state = game.getCurrentState();
+
+            // 場のカード
+            if (state.topCard) {
+                topCardDisplay.textContent = state.topCard.toString();
+                topCardDisplay.className = `top-card-display ${state.topCard.suit === '♥' || state.topCard.suit === '♦' ? 'red' : 'black'}`;
+            } else {
+                topCardDisplay.textContent = "なし";
+                topCardDisplay.className = "top-card-display";
+            }
+
+            // 山札と捨て札の枚数
+            deckSizeSpan.textContent = `${state.deckSize}枚`;
+            discardedCardsCountSpan.textContent = `${state.discardedCardsCount}枚`;
+
+            // 手札の表示
+            playerHandListDiv.innerHTML = '';
+            const currentHand = state.playerHand;
+            const topCard = state.topCard;
+            const knownCards = game.getAllKnownCards();
+
+            const cardScores = {};
+            const isFirstCardPlay = state.initialPlayPhase;
+            
+            for (const card of currentHand) {
+                if (isFirstCardPlay || game.canPlayCard(card)) {
+                    const allCardsSet = new Set();
+                    for (const s of SUITS) {
+                        for (const r of RANKS) {
+                            allCardsSet.add(new Card(s, r).toString());
+                        }
+                    }
+                    const currentKnownCardStrs = new Set(knownCards.map(c => c.toString()));
+                    const unknownCards = [];
+                    for (const cardStr of allCardsSet) {
+                        if (!currentKnownCardStrs.has(cardStr)) {
+                            unknownCards.push(new Card(cardStr[0], cardStr.substring(1)));
+                        }
+                    }
+                    cardScores[card.toString()] = assistant._evaluateMove(card, currentHand, topCard, unknownCards);
+                } else {
+                    cardScores[card.toString()] = -Infinity;
+                }
+            }
+
+            const sortedHand = [...currentHand].sort((a, b) => {
+                const scoreA = cardScores[a.toString()];
+                const scoreB = cardScores[b.toString()];
+                if (scoreA === -Infinity && scoreB !== -Infinity) return 1;
+                if (scoreA !== -Infinity && scoreB === -Infinity) return -1;
+                return scoreB - scoreA;
+            });
+
+            sortedHand.forEach(card => {
+                const cardDiv = document.createElement('div');
+                cardDiv.classList.add('card');
+                if (card.suit === '♥' || card.suit === '♦') {
+                    cardDiv.classList.add('red');
+                } else {
+                    cardDiv.classList.add('black');
+                }
+                if (isFirstCardPlay || game.canPlayCard(card)) {
+                    cardDiv.classList.add('playable');
+                }
+
+                cardDiv.innerHTML = `<div class="rank">${card.rank}</div><div class="suit">${card.suit}</div>`;
+
+                const score = cardScores[card.toString()];
+                const scoreSpan = document.createElement('div');
+                scoreSpan.classList.add('score');
+                if (score === -Infinity) {
+                    scoreSpan.textContent = "出せない";
+                    scoreSpan.classList.add('infinity');
+                } else {
+                    scoreSpan.textContent = `スコア: ${score.toFixed(1)}`;
+                    if (score > 0) scoreSpan.classList.add('positive');
+                    else if (score < 0) scoreSpan.classList.add('negative');
+                }
+                cardDiv.appendChild(scoreSpan);
+
+                cardDiv.onclick = () => playSelectedCard(card);
+                playerHandListDiv.appendChild(cardDiv);
+            });
+
+            // 捨てられたカードの履歴をテーブル形式で更新
+            discardedHistoryTableBody.innerHTML = '';
+            const discardedCounts = {};
+
+            for (const suit of SUITS) {
+                discardedCounts[suit] = {};
+                for (const rank of RANKS) {
+                    discardedCounts[suit][rank] = 0;
+                }
+            }
+
+            for (const card of state.playedCardsHistory) {
+                if (discardedCounts[card.suit]) {
+                    discardedCounts[card.suit][card.rank]++;
+                }
+            }
+
+            for (const suit of SUITS) {
+                const row = document.createElement('tr');
+                const suitCell = document.createElement('td');
+                suitCell.className = `suit-header ${suit === '♥' || suit === '♦' ? 'red-suit' : 'black-suit'}`;
+                suitCell.textContent = suit;
+                row.appendChild(suitCell);
+
+                for (const rank of RANKS) {
+                    const countCell = document.createElement('td');
+                    const count = discardedCounts[suit][rank];
+                    countCell.textContent = count;
+                    if (count === 0) {
+                        countCell.classList.add('card-count', 'zero');
+                    } else {
+                        countCell.classList.add('card-count');
+                    }
+                    row.appendChild(countCell);
+                }
+                discardedHistoryTableBody.appendChild(row);
+            }
+        }
+
+        // コントロールボタンのイベントハンドラ
+        function playSelectedCard(card) {
+            try {
+                const state = game.getCurrentState();
+                if (state.initialPlayPhase) {
+                    game.playCard(card);
+                    updateGUI();
+                } else if (game.canPlayCard(card)) {
+                    game.playCard(card);
+                    updateGUI();
+                } else {
+                    addLog(`エラー:「${card}」は場に出せません。`, 'error');
+                }
+            } catch (e) {
+                addLog(`予期せぬエラー (プレイ中): ${e.message}`, 'error');
+            }
+        }
+
+        function showAssist() {
+            const state = game.getCurrentState();
+            if (state.playerHand.length === 0) {
+                addLog("アシスト:手札がありません。", 'info');
+                return;
+            }
+            const bestMove = assistant.getBestMove(state.playerHand, state.topCard, game.getAllKnownCards());
+            if (bestMove) {
+                addLog(`アシスト結果: 最適解は **${bestMove}** です！ (手札のカードの下に表示されているスコアを確認してください)`, 'assist');
+            } else {
+                addLog("アシアシスト結果: 出せるカードがありません。パスしてください。", 'info');
+            }
+        }
+
+        function resetGameRandom() {
+            game.startGame(4, false);
+            updateGUI();
+            addLog("新しいゲームを開始しました！ (ランダムな初期手札と場札)", 'info');
+        }
+
+        function resetGameToEmptyState() {
+            game.startGame(0, false);
+            game.setTopCard("");
+            updateGUI();
+            addLog("新しいゲームを開始しました！ (手札も場札もクリア)", 'info');
+        }
+
+        // カード設定セクションのイベントハンドラ
+        function applyManualTopCard() {
+            const suit = topCardSuitSelect.value;
+            const rank = topCardRankSelect.value;
+            const selectedCardStr = `${suit}${rank}`;
+            try {
+                game.initialPlayPhase = false;
+                game.setTopCard(selectedCardStr);
+                updateGUI();
+                addLog(`場のカードを「${selectedCardStr}」に更新しました。`, 'success');
+            } catch (e) {
+                addLog(`場札設定エラー: ${e.message}`, 'error');
+            }
+        }
+
+        function clearTopCard() {
+            try {
+                game.setTopCard("");
+                updateGUI();
+                addLog("場のカードをクリアしました。", 'info');
+            } catch (e) {
+                addLog(`エラー (場札クリア中): ${e.message}`, 'error');
+            }
+        }
+
+        function addCardToHand() {
+            const suit = handSuitSelect.value;
+            const rank = handRankSelect.value;
+            const selectedCardStr = `${suit}${rank}`;
+            try {
+                const currentHandStrs = game.playerHand.map(c => c.toString());
+                const newHandStr = currentHandStrs.join(',') + (currentHandStrs.length > 0 ? ',' : '') + selectedCardStr;
+                game.setPlayerHand(newHandStr);
+                addLog(`「${selectedCardStr}」を手札に追加しました。`, 'success');
+                updateGUI();
+            } catch (e) {
+                addLog(`手札追加エラー: ${e.message}`, 'error');
+            }
+        }
+
+        function clearPlayerHand() {
+            try {
+                game.clearPlayerHandInternal();
+                updateGUI();
+                addLog("手札を全てクリアしました。", 'info');
+            } catch (e) {
+                addLog(`エラー (手札クリア中): ${e.message}`, 'error');
+            }
+        }
+
+        function setHandAndStartGame() {
+            const currentHandStrs = game.playerHand.map(c => c.toString());
+            const currentTopCardStr = game.topCard ? game.topCard.toString() : "";
+
+            try {
+                game.startGame(0, false);
+                game.playedCardsHistory = [];
+
+                game.setPlayerHand(currentHandStrs.join(','));
+                game.setTopCard(currentTopCardStr);
+                
+                addLog("現在の手札と場札で新しいゲームを開始しました！", 'info');
+                updateGUI();
+            } catch (e) {
+                addLog(`ゲーム開始エラー: ${e.message}\nクリア状態で開始します。`, 'error');
+                resetGameToEmptyState();
+            }
+        }
+
+        // 新しいゲーム開始時の初期状態 (手札5枚、場札なし、最初の1枚を出すフェーズ)
+        function resetGameInitialHandFive() {
+            game.startGame(5, true);
+            game.setTopCard("");
+            updateGUI();
+            addLog("新しいゲームを開始しました！\n手札から最初の1枚を出してください。", 'info');
+        }
+
+        // 初期化処理
+        populateSelects();
+        resetGameInitialHandFive();
+    </script>
+</body>
+</html>
