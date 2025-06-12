@@ -220,17 +220,36 @@
             background-color: #000040;
             color: var(--text-white);
         }
-        .manual-setup button.add-card { background-color: #28a745; }
-        .manual-setup button.add-card:hover { background-color: #218838; }
-        .manual-setup button.clear-card { background-color: #6c757d; }
-        .manual-setup button.clear-card:hover { background-color: #5a6268; }
+        .manual-setup button {
+            background-color: #007bff;
+            color: white;
+            padding: 8px 12px;
+            font-size: 0.9em;
+        }
+        .manual-setup button:hover {
+            background-color: #0056b3;
+        }
+        .manual-setup button.add-card {
+            background-color: #28a745;
+        }
+        .manual-setup button.add-card:hover {
+            background-color: #218838;
+        }
+        .manual-setup button.clear-card {
+            background-color: #6c757d;
+        }
+        .manual-setup button.clear-card:hover {
+            background-color: #5a6268;
+        }
         .manual-setup button.full-reset {
             background-color: #17a2b8;
             color: white;
             margin-top: 10px;
             width: 100%;
         }
-        .manual-setup button.full-reset:hover { background-color: #138496; }
+        .manual-setup button.full-reset:hover {
+            background-color: #138496;
+        }
 
         /* 捨てられたカードの履歴 - 新しいテーブル形式 */
         .discarded-history-table {
@@ -622,11 +641,12 @@
                 this.playedCardsHistory.push(cardToPlay);
                 this.deck.addDiscardedCard(cardToPlay);
                 
-                if (this.initialPlayPhase) {
-                    const cardsDrawnCount = this.refillHandToTargetSize();
-                    logMessage += `\n手札を${cardsDrawnCount}枚補充し、${this.playerHand.length}枚になりました。`;
-                    this.initialPlayPhase = false;
-                }
+                // 自動補充のロジックを削除
+                // if (this.initialPlayPhase) {
+                //     const cardsDrawnCount = this.refillHandToTargetSize();
+                //     logMessage += `\n手札を${cardsDrawnCount}枚補充し、${this.playerHand.length}枚になりました。`;
+                //     this.initialPlayPhase = false;
+                // }
 
                 this._updateDeckAfterManualHandSet();
                 addLog(logMessage, 'success');
@@ -634,6 +654,8 @@
             }
 
             refillHandToTargetSize() {
+                // このメソッドはもうplayCardから直接呼び出されないが、互換性のため残す
+                // あるいは、手動補充ボタンのための内部メソッドとして再利用可能
                 let cardsDrawn = 0;
                 while (this.playerHand.length < this.handSizeTarget) {
                     const card = this.deck.drawCard();
@@ -828,11 +850,7 @@
             }
 
             getBestMove(playerHand, topCard, knownCards) {
-                // 最初の1枚を出すフェーズでは、全てのカードが出せる
                 const playableCards = playerHand.filter(card => {
-                    // ここで `game` オブジェクトに直接アクセスするため、
-                    // assistantはgameインスタンスを知っているか、getState()を呼ぶ必要がある
-                    // 簡単にするため、グローバルな`game`インスタンスに直接アクセス
                     const currentState = game.getCurrentState(); 
                     if (currentState.initialPlayPhase) {
                         return true;
@@ -1254,19 +1272,19 @@
             if (bestMove) {
                 addLog(`アシスト結果: 最適解は **${bestMove}** です！ (手札のカードの下に表示されているスコアを確認してください)`, 'assist');
             } else {
-                addLog("アシアシスト結果: 出せるカードがありません。パスしてください。", 'info');
+                addLog("アシスト結果: 出せるカードがありません。パスしてください。", 'info');
             }
         }
 
         function resetGameRandom() {
-            game.startGame(4, false);
+            game.startGame(4, false); // ランダムな手札4枚と場札 (最初の1枚フェーズではない)
             updateGUI();
             addLog("新しいゲームを開始しました！ (ランダムな初期手札と場札)", 'info');
         }
 
         function resetGameToEmptyState() {
-            game.startGame(0, false);
-            game.setTopCard("");
+            game.startGame(0, false); // 手札を0枚、最初の1枚フェーズではない
+            game.setTopCard(""); // 場札をクリア
             updateGUI();
             addLog("新しいゲームを開始しました！ (手札も場札もクリア)", 'info');
         }
@@ -1342,15 +1360,16 @@
 
         // 新しいゲーム開始時の初期状態 (手札5枚、場札なし、最初の1枚を出すフェーズ)
         function resetGameInitialHandFive() {
-            game.startGame(5, true);
-            game.setTopCard("");
+            // 自動補充は行わないため、initialPlayPhaseは常にfalseとする
+            game.startGame(5, false); // 初期手札5枚、最初の1枚を出すフェーズではない
+            game.setTopCard(""); // 場札はクリアで開始
             updateGUI();
-            addLog("新しいゲームを開始しました！\n手札から最初の1枚を出してください。", 'info');
+            addLog("新しいゲームを開始しました！\n手札5枚が配られました。カードを出してください。", 'info');
         }
 
         // 初期化処理
         populateSelects();
-        resetGameInitialHandFive();
+        resetGameInitialHandFive(); // 起動時に手札5枚、場札なしで開始
     </script>
 </body>
 </html>
